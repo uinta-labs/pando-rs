@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package remote.upd88.com;
+
+message Container{
+  string id = 1;
+  string name = 2;
+  string container_image = 3;
+
+  map<string, string> env = 4;
+
+  bool privileged = 5;
+
+  enum NetworkMode {
+    BRIDGE = 0;
+    HOST = 1;
+    NONE = 2;
+  }
+  NetworkMode network_mode = 6;
+
+  message Port {
+    string host = 1;
+    string container = 2;
+    string protocol = 3;
+  }
+
+  repeated Port ports = 7;
+
+  bool bind_dev = 8;
+  bool bind_proc = 9;
+  bool bind_sys = 10;
+  bool bind_shm = 11;
+  bool bind_cgroup = 12;
+  bool bind_docker_socket = 13;
+  bool bind_boot = 14;
+
+  string command = 15;
+  string entrypoint = 16;
+}
+
+message Schedule {
+  string id = 1;
+  bool current = 2;
+  repeated Container containers = 3;
+}
+
+message GetScheduleRequest {
+  string device_id = 1;
+}
+
+message GetScheduleResponse {
+  Schedule schedule = 1;
+}
+
+message ContainerState {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+  string error = 4;
+  string schedule_id = 5;
+}
+
+message ReportScheduleStateRequest {
+  string device_id = 1;
+  repeated ContainerState container_states = 2;
+}
+
+message ReportScheduleStateResponse {}
+
+service RemoteService {
+  rpc GetSchedule(GetScheduleRequest) returns (GetScheduleResponse);
+  rpc ReportScheduleState(ReportScheduleStateRequest) returns (ReportScheduleStateResponse);
+}

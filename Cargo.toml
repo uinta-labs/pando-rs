@@ -1,0 +1,19 @@
+[package]
+name = "pando-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+prost = "0.13.4"
+tonic = { version = "0.12.3", features = ["tls-webpki-roots", "gzip", "zstd"] }
+tokio = { version = "1.29.1", features = ["fs", "net", "rt", "macros", "rt-multi-thread", "signal"] }
+rustix = { version = "0.38.44", features = ["system", "fs", "mount", "net"] }
+bollard = "0.18.1"
+futures = "0.3.31"
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.138"
+nom = "8.0.0"
+winnow = "0.7.2"
+
+[build-dependencies]
+tonic-build = { version = "0.12.3", features = ["prost"] }
