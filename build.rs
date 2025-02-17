@@ -1,6 +1,8 @@
 use std::{env, path::PathBuf};
 
 fn main() {
+    std::env::set_var("PROTOC", protobuf_src::protoc());
+
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     println!("OUT_DIR: {:?}", out_dir);
