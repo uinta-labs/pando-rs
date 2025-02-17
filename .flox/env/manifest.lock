@@ -12,6 +12,9 @@
         "pkg-path": "clippy",
         "pkg-group": "rust-toolchain"
       },
+      "cross": {
+        "pkg-path": "cargo-cross"
+      },
       "libiconv": {
         "pkg-path": "libiconv",
         "systems": [
@@ -56,188 +59,6 @@
     }
   },
   "packages": [
-    {
-      "attr_path": "libiconv",
-      "broken": false,
-      "derivation": "/nix/store/033cjcfdajhxq5chv8kdx7mxnklaksh5-libiconv-107.drv",
-      "description": "Iconv(3) implementation",
-      "install_id": "libiconv",
-      "license": "[ BSD-2-Clause, BSD-3-Clause, APSL-1.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=9d3ae807ebd2981d593cddd0080856873139aa40",
-      "name": "libiconv-107",
-      "pname": "libiconv",
-      "rev": "9d3ae807ebd2981d593cddd0080856873139aa40",
-      "rev_count": 745286,
-      "rev_date": "2025-01-29T09:16:47Z",
-      "scrape_date": "2025-01-30T03:28:02Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "107",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "dev": "/nix/store/60v52ynj47kjc87xy2xh46rpaawljqpm-libiconv-107-dev",
-        "out": "/nix/store/xlrxyhdh3irs3fh5rc94y99n9mvpjj7v-libiconv-107"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "libiconv",
-      "broken": false,
-      "derivation": "/nix/store/hdh0xa5p0ckc7kylc8wmr2svizhzmwp9-libiconv-107.drv",
-      "description": "Iconv(3) implementation",
-      "install_id": "libiconv",
-      "license": "[ BSD-2-Clause, BSD-3-Clause, APSL-1.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=9d3ae807ebd2981d593cddd0080856873139aa40",
-      "name": "libiconv-107",
-      "pname": "libiconv",
-      "rev": "9d3ae807ebd2981d593cddd0080856873139aa40",
-      "rev_count": 745286,
-      "rev_date": "2025-01-29T09:16:47Z",
-      "scrape_date": "2025-01-30T03:28:02Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "107",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "dev": "/nix/store/a2kcdaazx56k0a1i8mrp77shxn3ha95i-libiconv-107-dev",
-        "out": "/nix/store/lr7yd2fg1b6ciff3i2m9jbrj24nhizfq-libiconv-107"
-      },
-      "system": "x86_64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "protobuf",
-      "broken": false,
-      "derivation": "/nix/store/5biik4lz9fgsgbl0zf5d9qj5zxjbmqk2-protobuf-29.2.drv",
-      "description": "Google's data interchange format",
-      "install_id": "protobuf",
-      "license": "BSD-3-Clause",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=9d3ae807ebd2981d593cddd0080856873139aa40",
-      "name": "protobuf-29.2",
-      "pname": "protobuf",
-      "rev": "9d3ae807ebd2981d593cddd0080856873139aa40",
-      "rev_count": 745286,
-      "rev_date": "2025-01-29T09:16:47Z",
-      "scrape_date": "2025-01-30T03:28:02Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "29.2",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/rf1k2r8bh34i23za7w9g5nf459sldbb5-protobuf-29.2"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "protobuf",
-      "broken": false,
-      "derivation": "/nix/store/gyh22g7yaa82qgkmpf9vskwcnphwilzg-protobuf-29.2.drv",
-      "description": "Google's data interchange format",
-      "install_id": "protobuf",
-      "license": "BSD-3-Clause",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=9d3ae807ebd2981d593cddd0080856873139aa40",
-      "name": "protobuf-29.2",
-      "pname": "protobuf",
-      "rev": "9d3ae807ebd2981d593cddd0080856873139aa40",
-      "rev_count": 745286,
-      "rev_date": "2025-01-29T09:16:47Z",
-      "scrape_date": "2025-01-30T03:28:02Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "29.2",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/b0lnp9h1i5jv43nw1qyvb8xdyck3x2v2-protobuf-29.2"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "protobuf",
-      "broken": false,
-      "derivation": "/nix/store/5gkcqih18jc2bh3qj2rb54jhqghx1lrq-protobuf-29.2.drv",
-      "description": "Google's data interchange format",
-      "install_id": "protobuf",
-      "license": "BSD-3-Clause",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=9d3ae807ebd2981d593cddd0080856873139aa40",
-      "name": "protobuf-29.2",
-      "pname": "protobuf",
-      "rev": "9d3ae807ebd2981d593cddd0080856873139aa40",
-      "rev_count": 745286,
-      "rev_date": "2025-01-29T09:16:47Z",
-      "scrape_date": "2025-01-30T03:28:02Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "29.2",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/c97xv0vszx2g81d9339ndqf72z3ji6hy-protobuf-29.2"
-      },
-      "system": "x86_64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "protobuf",
-      "broken": false,
-      "derivation": "/nix/store/md04plaig6zkp14gi456drm1wykac3ya-protobuf-29.2.drv",
-      "description": "Google's data interchange format",
-      "install_id": "protobuf",
-      "license": "BSD-3-Clause",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=9d3ae807ebd2981d593cddd0080856873139aa40",
-      "name": "protobuf-29.2",
-      "pname": "protobuf",
-      "rev": "9d3ae807ebd2981d593cddd0080856873139aa40",
-      "rev_count": 745286,
-      "rev_date": "2025-01-29T09:16:47Z",
-      "scrape_date": "2025-01-30T03:28:02Z",
-      "stabilities": [
-        "staging",
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "29.2",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/r4k147v919pir4fj74in3axcbma03793-protobuf-29.2"
-      },
-      "system": "x86_64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
     {
       "attr_path": "cargo",
       "broken": false,
@@ -842,6 +663,308 @@
       },
       "system": "x86_64-linux",
       "group": "rust-toolchain",
+      "priority": 5
+    },
+    {
+      "attr_path": "cargo-cross",
+      "broken": false,
+      "derivation": "/nix/store/2qcmraq2y0ziy7hw4vx3nq86rmvs0wri-cargo-cross-0.2.5.drv",
+      "description": "Zero setup cross compilation and cross testing",
+      "install_id": "cross",
+      "license": "[ Apache-2.0, MIT ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=799ba5bffed04ced7067a91798353d360788b30d",
+      "name": "cargo-cross-0.2.5",
+      "pname": "cargo-cross",
+      "rev": "799ba5bffed04ced7067a91798353d360788b30d",
+      "rev_count": 747653,
+      "rev_date": "2025-02-04T14:46:40Z",
+      "scrape_date": "2025-02-05T00:30:07Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.2.5",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/ypracnl7yp4c3x43skjn5ab39qj9yhla-cargo-cross-0.2.5"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "cargo-cross",
+      "broken": false,
+      "derivation": "/nix/store/79nlzlrid9yv1hzaxxpp52dqvsp9qnbx-cargo-cross-0.2.5.drv",
+      "description": "Zero setup cross compilation and cross testing",
+      "install_id": "cross",
+      "license": "[ Apache-2.0, MIT ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=799ba5bffed04ced7067a91798353d360788b30d",
+      "name": "cargo-cross-0.2.5",
+      "pname": "cargo-cross",
+      "rev": "799ba5bffed04ced7067a91798353d360788b30d",
+      "rev_count": 747653,
+      "rev_date": "2025-02-04T14:46:40Z",
+      "scrape_date": "2025-02-05T00:30:07Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.2.5",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/bwql1ybaym8n7m8pg0bddff6wfj2h4mg-cargo-cross-0.2.5"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "cargo-cross",
+      "broken": false,
+      "derivation": "/nix/store/pg14m04g4vvji5rgxl7aqqdhjwwqvgkr-cargo-cross-0.2.5.drv",
+      "description": "Zero setup cross compilation and cross testing",
+      "install_id": "cross",
+      "license": "[ Apache-2.0, MIT ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=799ba5bffed04ced7067a91798353d360788b30d",
+      "name": "cargo-cross-0.2.5",
+      "pname": "cargo-cross",
+      "rev": "799ba5bffed04ced7067a91798353d360788b30d",
+      "rev_count": 747653,
+      "rev_date": "2025-02-04T14:46:40Z",
+      "scrape_date": "2025-02-05T00:30:07Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.2.5",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/55gql4lkf1dj5b5dwg9acprcjd2j01r6-cargo-cross-0.2.5"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "cargo-cross",
+      "broken": false,
+      "derivation": "/nix/store/adznx1ba7iksspcjln09ciqgjgakj36g-cargo-cross-0.2.5.drv",
+      "description": "Zero setup cross compilation and cross testing",
+      "install_id": "cross",
+      "license": "[ Apache-2.0, MIT ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=799ba5bffed04ced7067a91798353d360788b30d",
+      "name": "cargo-cross-0.2.5",
+      "pname": "cargo-cross",
+      "rev": "799ba5bffed04ced7067a91798353d360788b30d",
+      "rev_count": 747653,
+      "rev_date": "2025-02-04T14:46:40Z",
+      "scrape_date": "2025-02-05T00:30:07Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.2.5",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/mibas12inwcq3l57npjl6y5g3ls0fj6w-cargo-cross-0.2.5"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "libiconv",
+      "broken": false,
+      "derivation": "/nix/store/033cjcfdajhxq5chv8kdx7mxnklaksh5-libiconv-107.drv",
+      "description": "Iconv(3) implementation",
+      "install_id": "libiconv",
+      "license": "[ BSD-2-Clause, BSD-3-Clause, APSL-1.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=799ba5bffed04ced7067a91798353d360788b30d",
+      "name": "libiconv-107",
+      "pname": "libiconv",
+      "rev": "799ba5bffed04ced7067a91798353d360788b30d",
+      "rev_count": 747653,
+      "rev_date": "2025-02-04T14:46:40Z",
+      "scrape_date": "2025-02-05T00:30:07Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "107",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/60v52ynj47kjc87xy2xh46rpaawljqpm-libiconv-107-dev",
+        "out": "/nix/store/xlrxyhdh3irs3fh5rc94y99n9mvpjj7v-libiconv-107"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "libiconv",
+      "broken": false,
+      "derivation": "/nix/store/hdh0xa5p0ckc7kylc8wmr2svizhzmwp9-libiconv-107.drv",
+      "description": "Iconv(3) implementation",
+      "install_id": "libiconv",
+      "license": "[ BSD-2-Clause, BSD-3-Clause, APSL-1.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=799ba5bffed04ced7067a91798353d360788b30d",
+      "name": "libiconv-107",
+      "pname": "libiconv",
+      "rev": "799ba5bffed04ced7067a91798353d360788b30d",
+      "rev_count": 747653,
+      "rev_date": "2025-02-04T14:46:40Z",
+      "scrape_date": "2025-02-05T00:30:07Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "107",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dev": "/nix/store/a2kcdaazx56k0a1i8mrp77shxn3ha95i-libiconv-107-dev",
+        "out": "/nix/store/lr7yd2fg1b6ciff3i2m9jbrj24nhizfq-libiconv-107"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "protobuf",
+      "broken": false,
+      "derivation": "/nix/store/5biik4lz9fgsgbl0zf5d9qj5zxjbmqk2-protobuf-29.2.drv",
+      "description": "Google's data interchange format",
+      "install_id": "protobuf",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=799ba5bffed04ced7067a91798353d360788b30d",
+      "name": "protobuf-29.2",
+      "pname": "protobuf",
+      "rev": "799ba5bffed04ced7067a91798353d360788b30d",
+      "rev_count": 747653,
+      "rev_date": "2025-02-04T14:46:40Z",
+      "scrape_date": "2025-02-05T00:30:07Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "29.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/rf1k2r8bh34i23za7w9g5nf459sldbb5-protobuf-29.2"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "protobuf",
+      "broken": false,
+      "derivation": "/nix/store/gyh22g7yaa82qgkmpf9vskwcnphwilzg-protobuf-29.2.drv",
+      "description": "Google's data interchange format",
+      "install_id": "protobuf",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=799ba5bffed04ced7067a91798353d360788b30d",
+      "name": "protobuf-29.2",
+      "pname": "protobuf",
+      "rev": "799ba5bffed04ced7067a91798353d360788b30d",
+      "rev_count": 747653,
+      "rev_date": "2025-02-04T14:46:40Z",
+      "scrape_date": "2025-02-05T00:30:07Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "29.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/b0lnp9h1i5jv43nw1qyvb8xdyck3x2v2-protobuf-29.2"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "protobuf",
+      "broken": false,
+      "derivation": "/nix/store/5gkcqih18jc2bh3qj2rb54jhqghx1lrq-protobuf-29.2.drv",
+      "description": "Google's data interchange format",
+      "install_id": "protobuf",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=799ba5bffed04ced7067a91798353d360788b30d",
+      "name": "protobuf-29.2",
+      "pname": "protobuf",
+      "rev": "799ba5bffed04ced7067a91798353d360788b30d",
+      "rev_count": 747653,
+      "rev_date": "2025-02-04T14:46:40Z",
+      "scrape_date": "2025-02-05T00:30:07Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "29.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/c97xv0vszx2g81d9339ndqf72z3ji6hy-protobuf-29.2"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "protobuf",
+      "broken": false,
+      "derivation": "/nix/store/md04plaig6zkp14gi456drm1wykac3ya-protobuf-29.2.drv",
+      "description": "Google's data interchange format",
+      "install_id": "protobuf",
+      "license": "BSD-3-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=799ba5bffed04ced7067a91798353d360788b30d",
+      "name": "protobuf-29.2",
+      "pname": "protobuf",
+      "rev": "799ba5bffed04ced7067a91798353d360788b30d",
+      "rev_count": 747653,
+      "rev_date": "2025-02-04T14:46:40Z",
+      "scrape_date": "2025-02-05T00:30:07Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "29.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/r4k147v919pir4fj74in3axcbma03793-protobuf-29.2"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
       "priority": 5
     }
   ]

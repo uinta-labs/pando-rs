@@ -17,4 +17,9 @@ winnow = "0.7.2"
 
 [build-dependencies]
 tonic-build = { version = "0.12.3", features = ["prost"] }
-protobuf-src = "2.1.1"
+
+# If installing a compaible protobuf compiler becomes too onerous, this nifty packagel will build it for us at the
+# non-zero cost of...compiling protoc. May be useful if we want to build this within yocto, though on last attempt
+# on a Fedora-based build host, the protoc compiler produced could not execute. However, the Yocto-provided protoc
+# would not execute either, so I suspect an incompatiblity with my test.
+# protobuf-src = "2.1.1"

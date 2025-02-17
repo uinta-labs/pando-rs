@@ -24,6 +24,7 @@ rust-lib-src.pkg-path = "rustPlatform.rustLibSrc"
 rust-lib-src.pkg-group = "rust-toolchain"
 libiconv.pkg-path = "libiconv"
 libiconv.systems = ["aarch64-darwin", "x86_64-darwin"]
+cross.pkg-path = "cargo-cross"
 
 #cargo.pkg-path = "cargo"
 protobuf.pkg-path = "protobuf"
