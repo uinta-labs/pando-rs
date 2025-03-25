@@ -1,4 +1,13 @@
 
+Testing Commands
+
+```shell
+balena kill browser || true
+balena rm browser || true
+balena run -d --privileged --rm --name browser -e 'KIOSK=1' -e 'LAUNCH_URL=https://cataas.com/cat' -e 'AUTO_REFRESH=90' -e 'ENABLE_GPU=1' -p 5011:5011 -p 35173:35173 bh.cr/balenalabs/browser-aarch64
+```
+
+
 ### Configuration
 
 Currently using Flox to manage the environment. The `.flox/env/manifest.toml` contains a config that was taken from here: https://flox.dev/docs/cookbook/languages/rust/#what-do-i-need-for-a-basic-environment

@@ -1,27 +1,20 @@
-mod config;
-
-// this is still a mess
-// mod config_txt;
-
+use anyhow::Result;
+use async_nats::Subject;
 use bollard::container::{KillContainerOptions, StartContainerOptions};
+use bollard::secret::SystemVersionPlatform;
 use bollard::{container::ListContainersOptions, Docker, API_DEFAULT_VERSION};
+use bytes::Bytes;
 use futures::StreamExt;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use std::time::Duration;
-use tokio::signal::unix::{signal, SignalKind};
-use tokio::time;
-use tonic::Request;
+use tokio::{task, time};
 
-use crate::grpc_remote::container::NetworkMode;
-use grpc_remote::remote_service_client::RemoteServiceClient;
-use grpc_remote::{GetScheduleRequest, Schedule};
+use crate::temp::{Temperature, list_zones};
+use crate::grpc_remote::Schedule;
 
-pub mod grpc_remote {
-    tonic::include_proto!("remote.upd88.com");
-}
-
-const DEFAULT_BASE_URL: &str = "https://graphene.fluffy-broadnose.ts.net";
+// const DEFAULT_BASE_URL: &str = "https://graphene.fluffy-broadnose.ts.net";
 const DEFAULT_DOCKER_ENGINE_SOCKET: &str = "/run/balena-engine.sock";
 
 #[derive(Debug)]
@@ -31,8 +24,21 @@ struct Runner {
 }
 
 impl Runner {
-    fn new(socket: &str) -> Result<Self, bollard::errors::Error> {
+    async fn new(socket: &str) -> Result<Self, bollard::errors::Error> {
         let docker = Docker::connect_with_unix(socket, 120, API_DEFAULT_VERSION)?;
+        let version = docker.version().await?;
+        println!(
+            "Connected to docker engine {} {} {} {}",
+            version.os.unwrap_or("Unknown".to_string()),
+            version.arch.unwrap_or("Unknown".to_string()),
+            version.api_version.unwrap_or("Unknown".to_string()),
+            version
+                .platform
+                .unwrap_or(SystemVersionPlatform {
+                    name: "Unknown".to_string(),
+                })
+                .name
+        );
         Ok(Runner {
             docker,
             host_socket_path: socket.to_string(),
@@ -61,6 +67,14 @@ impl Runner {
         self.docker
             .kill_container(container_id, None::<KillContainerOptions<String>>)
             .await
+    }
+
+    async fn image_exists_locally(&self, image: &str) -> Result<bool, bollard::errors::Error> {
+        self.docker
+            .image_history(image)
+            .await
+            .map(|_| true)
+            .or_else(|_| Ok(false))
     }
 
     async fn pull_image(&self, image: &str) -> Result<(), bollard::errors::Error> {
@@ -171,6 +185,11 @@ async fn apply_schedule(
         }
     }
 
+    if schedule.id.is_empty() {
+        println!("No schedule to run");
+        return Ok(());
+    }
+
     println!("Running schedule: {}", schedule.id);
 
     // Start new containers
@@ -181,18 +200,22 @@ async fn apply_schedule(
         }
 
         println!("Running task: {}", task.name);
-        if let Err(e) = runner.pull_image(&task.container_image).await {
-            println!("Error pulling image: {:?}", e);
-            continue;
+
+        if !runner.image_exists_locally(&task.container_image).await? {
+            if let Err(e) = runner.pull_image(&task.container_image).await {
+                println!("Error pulling image: {:?}", e);
+                continue;
+            }
         }
 
-        let mut env_vars = Vec::new();
-        for (key, value) in &task.env {
-            env_vars.push(format!("{}={}", key, value));
-        }
+        let env_vars: Vec<String> = task
+            .environment
+            .iter()
+            .map(|e| format!("{}={}", e.key, e.value))
+            .collect();
 
         let command = if !task.command.is_empty() {
-            Some(vec![task.command.clone()])
+            Some(task.command.clone())
         } else {
             None
         };
@@ -212,7 +235,7 @@ async fn apply_schedule(
                 env_vars,
                 labels,
                 task.bind_docker_socket,
-                task.network_mode == <NetworkMode as Into<i32>>::into(NetworkMode::Host), // Assuming 1 is HOST in the proto enum
+                task.network_mode == "host",
             )
             .await
         {
@@ -224,97 +247,130 @@ async fn apply_schedule(
     Ok(())
 }
 
-async fn run_scheduler_tick(
-    client: &mut RemoteServiceClient<tonic::transport::Channel>,
-    runner: &Runner,
-    device_id: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Running scheduler");
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct SystemStats {
+    cpu_temp: f64,
+}
 
-    let request = Request::new(GetScheduleRequest {
-        device_id: device_id.to_string(),
-    });
+#[derive(Debug)]
+enum MessageSubject {
+    SetSchedule,
+    GetSchedule,
+    GetStats,
+}
 
-    match client.get_schedule(request).await {
-        Ok(response) => {
-            if let Some(schedule) = response.into_inner().schedule {
-                if let Err(e) = apply_schedule(runner, &schedule).await {
-                    println!("Error applying schedule: {:?}", e);
+fn parse_subject(s: Subject) -> Result<MessageSubject, anyhow::Error> {
+    let parts = s.split(".").collect::<Vec<&str>>();
+
+    if parts.len() < 3 {
+        return Err(anyhow::anyhow!("Invalid subject (too short)"));
+    }
+
+    if parts[0] != "pando" {
+        return Err(anyhow::anyhow!(
+            "Unrecognized subject (first segment was not 'pando')"
+        ));
+    }
+
+    if parts[1] != "commands" {
+        return Err(anyhow::anyhow!(
+            "Unrecognized subject (second segment was not 'commands')"
+        ));
+    }
+
+    match parts[2] {
+        "run-schedule" => Ok(MessageSubject::SetSchedule),
+        "get-schedule" => Ok(MessageSubject::GetSchedule),
+        "get-stats" => Ok(MessageSubject::GetStats),
+        _ => Err(anyhow::anyhow!("Invalid subject")),
+    }
+}
+
+fn parse_schedule_payload(payload: Bytes) -> Result<Schedule, anyhow::Error> {
+    prost::Message::decode(payload).map_err(|e| anyhow::anyhow!(e))
+}
+
+async fn run_scheduler(runner: Runner, device_id: String) -> Result<(), anyhow::Error> {
+    let nats_url = env::var("NATS_URL").unwrap_or_else(|_| "tls://connect.ngs.global".to_string());
+    let client = async_nats::ConnectOptions::with_credentials_file(
+        "/Users/isaac/Downloads/NGS-Default-Example-Client.creds",
+    )
+    .await
+    .expect("Failed to create client")
+    .name(format!("pando-agent-{}", device_id))
+    .connect(nats_url)
+    .await?;
+    let mut subscriber = client.subscribe("pando.commands.*").await?;
+
+    task::spawn(async move {
+        loop {
+            match list_zones().await {
+                Ok(temp_zones) => {
+                    for zone in temp_zones {
+                        let temp = Temperature::new(zone.clone());
+                        let temp = temp.get_temperature().await.unwrap();
+                        let stats = SystemStats {
+                            cpu_temp: temp,
+                        };
+                        let stats_json = serde_json::to_string(&stats).unwrap();
+                        println!("Publishing stats: {}", stats_json);
+
+                        let subject = format!("pando.stats.{}.json", device_id);
+                        if let Err(e) = client.publish(subject, stats_json.into()).await {
+                            println!("Error publishing stats: {:?}", e);
+                        }
+                        time::sleep(Duration::from_secs(5)).await;
+                    }
                 }
-            } else {
-                println!("Received empty schedule");
+                Err(e) => println!("Error getting temperature: {:?}", e),
             }
         }
-        Err(e) => println!("Error getting schedule: {:?}", e),
+    });
+
+    while let Some(message) = subscriber.next().await {
+        println!("Received message {:?}", message);
+
+        match parse_subject(message.subject.clone()) {
+            Err(e) => {
+                println!("Error parsing subject: {:?}", e);
+                continue;
+            }
+            Ok(subject) => match subject {
+                MessageSubject::SetSchedule => match parse_schedule_payload(message.payload) {
+                    Err(e) => {
+                        println!("Error parsing schedule payload: {:?}", e);
+                        continue;
+                    }
+                    Ok(schedule) => {
+                        if let Err(e) = apply_schedule(&runner, &schedule).await {
+                            println!("Error applying schedule: {:?}", e);
+                        }
+
+                        println!("Received schedule: {:?}", schedule);
+                    }
+                },
+                MessageSubject::GetSchedule => {
+                    println!("Received get-schedule request (unhandled)");
+                }
+                MessageSubject::GetStats => {
+                    println!("Received get-stats request (unhandled)");
+                }
+            },
+        }
     }
 
     Ok(())
 }
 
-async fn wait_for_client_connection(
-    endpoint: String,
-) -> Result<RemoteServiceClient<tonic::transport::Channel>, Box<dyn std::error::Error>> {
-    let total_wait_limit = 600; // we will wait for up to 10 minutes before bailing
-    let connect_start_time = time::Instant::now();
-    let current_wait_period_sec = 5;
-    loop {
-        if connect_start_time.elapsed().as_secs() > total_wait_limit {
-            return Err(format!("Timed out waiting {} seconds for remote service to connect", total_wait_limit).into());
-        }
-        let client = RemoteServiceClient::connect(endpoint.clone()).await;
-        match client {
-            Ok(client) => {
-                println!("Connected to remote service");
-                return Ok(client);
-            }
-            Err(e) => {
-                println!("Error connecting to remote service (have been trying for {}/{} seconds; retrying in {} second(s)): {:?}", connect_start_time.elapsed().as_secs(), total_wait_limit, current_wait_period_sec, e);
-                time::sleep(Duration::from_secs(current_wait_period_sec)).await;
-            }
-        }
-    }
-}
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_agent() -> Result<(), anyhow::Error> {
     let docker_engine_socket =
         env::var("DOCKER_HOST").unwrap_or_else(|_| DEFAULT_DOCKER_ENGINE_SOCKET.to_string());
-    println!("Connecting to docker engine at {}", docker_engine_socket);
 
-    let runner = Runner::new(&docker_engine_socket)?;
-
-    let endpoint = env::var("API_URL").unwrap_or_else(|_| DEFAULT_BASE_URL.to_string());
-    println!("API_URL: {}", endpoint);
+    let runner = Runner::new(&docker_engine_socket).await?;
 
     let uname = rustix::system::uname();
     let hostname = uname.nodename().to_str().unwrap_or("unknown");
     let device_id = hostname.to_string();
 
-    // Set up signal handling
-    let mut sigterm = signal(SignalKind::terminate())?;
-    let mut sigint = signal(SignalKind::interrupt())?;
-
-    tokio::select! {
-        _ = async {
-            match wait_for_client_connection(endpoint).await {
-                Ok(mut client) => {
-                    loop {
-                        if let Err(e) = run_scheduler_tick(&mut client, &runner, &device_id).await {
-                            println!("Scheduler tick error: {:?}", e);
-                        }
-                        time::sleep(Duration::from_secs(15)).await;
-                    }
-                }
-                Err(e) => {
-                    println!("Giving up on connecting to remote service {:?}", e);
-                    return;
-                }
-            }
-        } => {}
-        _ = sigterm.recv() => println!("Received SIGTERM"),
-        _ = sigint.recv() => println!("Received SIGINT"),
-    }
-
-    println!("Shutting down");
-    Ok(())
+    run_scheduler(runner, device_id).await
 }

@@ -1,9 +1,8 @@
 use winnow::{
     ascii::{line_ending, space0},
     combinator::{alt, opt, preceded},
-    token::{take_till, take_until},
-    Parser,
-    Result,
+    token::{take_till},
+    Parser, Result,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -35,7 +34,7 @@ impl ConfigFile {
         for line in &self.lines {
             match line {
                 ConfigLine::Comment(comment) => {
-                    output.push_str("#");
+                    output.push('#');
                     output.push_str(comment);
                     output.push('\n');
                 }
@@ -81,15 +80,13 @@ impl ConfigFile {
     }
 
     pub fn set_value(&mut self, key: &str, value: &str) -> Result<(), String> {
-        if key.len() + value.len() + 1 > 98 {
+        if (key.len() + value.len() + 1) > 98 {
             return Err("Entry exceeds 98-character limit".to_string());
         }
 
         for line in &mut self.lines {
             if let ConfigLine::Entry {
-                key: k,
-                value: v,
-                ..
+                key: k, value: v, ..
             } = line
             {
                 if k == key {
@@ -122,34 +119,35 @@ fn parse_comment(input: &mut &str) -> Result<ConfigLine> {
         '#',
         take_till(1.., |c| c == '\n').map(|s: &str| ConfigLine::Comment(s.to_string())),
     )
-        .parse_next(input)
+    .parse_next(input)
 }
 
 fn parse_key(input: &mut &str) -> Result<String> {
-    take_until(input, '=')
-        .to_string()
-
-}
-
-fn parse_value(input: &mut &str) -> winnow::PResult<String> {
-    take_till1(|c| !is_value_char(c))
+    take_till(1.., |c| !is_key_char(c))
         .map(|s: &str| s.to_string())
         .parse_next(input)
 }
 
-fn parse_trailing_comment(input: &mut &str) -> winnow::PResult<String> {
+fn parse_value(input: &mut &str) -> Result<String> {
+    take_till(1.., |c| !is_value_char(c))
+        .map(|s: &str| s.to_string())
+        .parse_next(input)
+}
+
+fn parse_trailing_comment(input: &mut &str) -> Result<String> {
     preceded(
         ('#', space0),
         take_till(1.., |c| c == '\n').map(|s: &str| s.to_string()),
     )
-        .parse_next(input)
+    .parse_next(input)
 }
 
-fn parse_entry(input: &mut &str) -> winnow::PResult<ConfigLine> {
-    let (key, value, trailing_comment) = (
+fn parse_entry(input: &mut &str) -> Result<ConfigLine> {
+    let (key, value, trailing_comment, _) = (
         parse_key,
         opt(preceded('=', parse_value)),
         opt(preceded(space0, parse_trailing_comment)),
+        opt(line_ending),
     )
         .parse_next(input)?;
 
@@ -160,23 +158,22 @@ fn parse_entry(input: &mut &str) -> winnow::PResult<ConfigLine> {
     })
 }
 
-fn parse_empty_line(input: &mut &str) -> winnow::PResult<ConfigLine> {
+fn parse_empty_line(input: &mut &str) -> Result<ConfigLine> {
     line_ending.map(|_| ConfigLine::Empty).parse_next(input)
 }
 
-fn parse_line(input: &mut &str) -> winnow::PResult<ConfigLine> {
-    preceded(
-        space0,
-        alt((parse_comment, parse_entry, parse_empty_line)),
-    )
-        .parse_next(input)
+fn parse_line(input: &mut &str) -> Result<ConfigLine> {
+    preceded(space0, alt((parse_comment, parse_entry, parse_empty_line))).parse_next(input)
 }
 
 fn parse_config(input: &mut &str) -> Result<Vec<ConfigLine>> {
-    repeat0(parse_line).parse_next(input)
+    let mut lines = Vec::new();
+    while !input.is_empty() {
+        lines.push(parse_line.parse_next(input)?);
+    }
+    Ok(lines)
 }
 
-// Validation traits for extensibility
 
 pub trait ConfigValidator {
     fn validate_entry(&self, key: &str, value: Option<&str>) -> Result<(), String>;
@@ -211,6 +208,7 @@ impl ConfigValidator for DtOverlayValidator {
 
 #[cfg(test)]
 mod tests {
+    
     use super::*;
 
     #[test]
@@ -239,6 +237,19 @@ dtoverlay=w1-gpio
     }
 
     #[test]
+    fn test_parse_without_trailing_newline() {
+        // Ensure that the parser can handle input without a trailing newline
+        // This may be a rare case where we won't faithfully reproduce the input
+        let input = "\
+dtoverlay=4dpi-3x
+dtoverlay=w1-gpio";
+        let input_with_newline = format!("{}\n", input);
+        let config = ConfigFile::parse(input).unwrap();
+        let output = config.to_string();
+        assert_eq!(input_with_newline, output);
+    }
+
+    #[test]
     fn test_set_value() {
         let mut config = ConfigFile::parse("dtparam=audio=off\n").unwrap();
         config.set_value("dtparam", "audio=on").unwrap();
@@ -248,7 +259,7 @@ dtoverlay=w1-gpio
     #[test]
     fn test_line_length_limit() {
         let mut config = ConfigFile::parse("").unwrap();
-        let long_value = "x".repeat(90);
+        let long_value = "x".repeat(95);
         assert!(config.set_value("test", &long_value).is_err());
     }
 }

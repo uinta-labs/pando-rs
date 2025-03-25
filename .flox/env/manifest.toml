@@ -11,10 +11,10 @@ version = 1
 [install]
 
 cargo.pkg-path = "cargo"
-cargo.version = "1.75.0"
+cargo.version = "1.84.0"
 cargo.pkg-group = "rust-toolchain"
 rustc.pkg-path = "rustc"
-rustc.version = "1.75.0"
+rustc.version = "1.84.0"
 rustc.pkg-group = "rust-toolchain"
 clippy.pkg-path = "clippy"
 clippy.pkg-group = "rust-toolchain"
@@ -25,20 +25,17 @@ rust-lib-src.pkg-group = "rust-toolchain"
 libiconv.pkg-path = "libiconv"
 libiconv.systems = ["aarch64-darwin", "x86_64-darwin"]
 cross.pkg-path = "cargo-cross"
-
-#cargo.pkg-path = "cargo"
 protobuf.pkg-path = "protobuf"
-# hello.pkg-path = "hello"
-# nodejs = { version = "^20.15.1", pkg-path = "nodejs" }
+python.pkg-path = "python"
+natscli.pkg-path = "natscli"
 
 # Set environment variables in the `[vars]` section. These variables may not
 # reference one another, and are added to the environment without first
 # expanding them. They are available for use in the `[profile]` and `[hook]`
 # scripts.
 [vars]
-DOCKER_HOST = "/var/run/docker.sock"
+DOCKER_HOST = "unix:///var/run/docker.sock"
 API_URL = "http://localhost:5900"
-# message = "Howdy"
 
 # The `hook.on-activate` script is run by the *bash* shell immediately upon
 # activating an environment, and will not be invoked if Flox detects that the

@@ -1,0 +1,13 @@
+[package]
+name = "pando-agent"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+pando-core = { path = "../core" }
+tokio = { version = "1.44.1", features = ["rt-multi-thread", "process"] }
+
+[[bin]]
+name = "pando-rs"
+path = "src/main.rs"
