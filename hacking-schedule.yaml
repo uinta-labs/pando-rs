@@ -1,0 +1,7 @@
+version: 0.1.0
+services:
+    -
+        name: nginx
+        image: nginx:latest
+        ports:
+            - "80:80"

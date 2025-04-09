@@ -39,3 +39,19 @@ run-on ip:
       -o StrictHostKeyChecking=no \
       -o UserKnownHostsFile=/dev/null \
          root@{{ ip }} 'image_id=$( balena load -i /tmp/new-container.tgz | cut -d : -f 3 ); balena tag ${image_id} pando-agent:preload && systemctl restart pando-agent.service'
+
+
+
+db:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  docker kill pando-remote-db || true
+  docker rm pando-remote-db || true
+  docker run --rm -d \
+    --name pando-remote-db \
+    -p 54432:5432 \
+    -e POSTGRES_USER=pando_service \
+    -e POSTGRES_PASSWORD=hunter2 \
+    -e POSTGRES_DB=pandodb \
+    postgres:16-alpine

@@ -5,9 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+env_logger = { workspace = true }
 pando-core = { path = "../core" }
 tokio = { version = "1.44.1", features = ["rt-multi-thread", "process"] }
 
 [[bin]]
-name = "pando-rs"
+name = "pando-agent"
 path = "src/main.rs"

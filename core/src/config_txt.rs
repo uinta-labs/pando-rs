@@ -1,7 +1,9 @@
+use std::fmt;
+
 use winnow::{
     ascii::{line_ending, space0},
     combinator::{alt, opt, preceded},
-    token::{take_till},
+    token::take_till,
     Parser, Result,
 };
 
@@ -27,37 +29,6 @@ impl ConfigFile {
             Ok(lines) => Ok(ConfigFile { lines }),
             Err(e) => Err(format!("Parse error: {}", e)),
         }
-    }
-
-    pub fn to_string(&self) -> String {
-        let mut output = String::new();
-        for line in &self.lines {
-            match line {
-                ConfigLine::Comment(comment) => {
-                    output.push('#');
-                    output.push_str(comment);
-                    output.push('\n');
-                }
-                ConfigLine::Empty => output.push('\n'),
-                ConfigLine::Entry {
-                    key,
-                    value,
-                    trailing_comment,
-                } => {
-                    output.push_str(key);
-                    if let Some(val) = value {
-                        output.push('=');
-                        output.push_str(val);
-                    }
-                    if let Some(comment) = trailing_comment {
-                        output.push_str(" #");
-                        output.push_str(comment);
-                    }
-                    output.push('\n');
-                }
-            }
-        }
-        output
     }
 
     pub fn get_value(&self, key: &str) -> Option<&str> {
@@ -103,6 +74,40 @@ impl ConfigFile {
             trailing_comment: None,
         });
         Ok(())
+    }
+}
+
+impl fmt::Display for ConfigFile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut output = String::new();
+        for line in &self.lines {
+            match line {
+                ConfigLine::Comment(comment) => {
+                    output.push('#');
+                    output.push_str(comment);
+                    output.push('\n');
+                }
+                ConfigLine::Empty => output.push('\n'),
+                ConfigLine::Entry {
+                    key,
+                    value,
+                    trailing_comment,
+                } => {
+                    output.push_str(key);
+                    if let Some(val) = value {
+                        output.push('=');
+                        output.push_str(val);
+                    }
+                    if let Some(comment) = trailing_comment {
+                        output.push_str(" #");
+                        output.push_str(comment);
+                    }
+                    output.push('\n');
+                }
+            }
+        }
+        // output
+        write!(f, "{}", output)
     }
 }
 
@@ -174,7 +179,6 @@ fn parse_config(input: &mut &str) -> Result<Vec<ConfigLine>> {
     Ok(lines)
 }
 
-
 pub trait ConfigValidator {
     fn validate_entry(&self, key: &str, value: Option<&str>) -> Result<(), String>;
 }
@@ -208,7 +212,7 @@ impl ConfigValidator for DtOverlayValidator {
 
 #[cfg(test)]
 mod tests {
-    
+
     use super::*;
 
     #[test]

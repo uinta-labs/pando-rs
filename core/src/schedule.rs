@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::grpc_remote::{Container, ContainerEnvironment, ContainerPortDefinition, Schedule};
+
 // #[derive(Debug, Clone, Serialize, Deserialize)]
 // pub struct Healthcheck {
 //     test: Vec<String>,
@@ -9,16 +11,14 @@ use serde::{Deserialize, Serialize};
 //     start_period: String,
 // }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HostFeatures {
     #[serde(default)]
-    daemon_socket: bool,
+    pub daemon_socket: bool,
 
     #[serde(default)]
-    boot_partition: bool,
+    pub boot_partition: bool,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PortSpec {
@@ -50,38 +50,37 @@ pub enum NetworkMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Service {
-    name: String,
-    image: String,
+    pub name: String,
+    pub image: String,
+
+    #[serde(default, deserialize_with = "deserialize_environment")]
+    pub environment: Vec<(String, String)>,
+
+    #[serde(default, deserialize_with = "deserialize_command")]
+    pub command: Vec<String>,
 
     #[serde(default)]
-    environment: Vec<String>,
+    pub restart: String,
 
     #[serde(default)]
-    command: String,
+    pub networks: Vec<String>,
 
     #[serde(default)]
-    restart: String,
+    pub depends_on: Vec<String>,
 
     #[serde(default)]
-    networks: Vec<String>,
-
-    #[serde(default)]
-    depends_on: Vec<String>,
-
-    #[serde(default)]
-    privileged: bool,
+    pub privileged: bool,
 
     #[serde(default, deserialize_with = "deserialize_port_specs")]
-    ports: Vec<PortSpec>,
+    pub ports: Vec<PortSpec>,
 
     #[serde(default, deserialize_with = "deserialize_volume_specs")]
-    volumes: Vec<VolumeSpec>,
+    pub volumes: Vec<VolumeSpec>,
 
     // #[serde(default)]
     // healthcheck: Healthcheck,
-
     #[serde(default)]
-    host_features: HostFeatures,
+    pub host_features: HostFeatures,
 }
 
 fn default_protocol() -> String {
@@ -226,10 +225,55 @@ where
         .collect()
 }
 
+fn deserialize_environment<'de, D>(deserializer: D) -> Result<Vec<(String, String)>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let env_vars = Vec::<String>::deserialize(deserializer)?;
+
+    env_vars
+        .into_iter()
+        .map(|var| match var {
+            s if s.contains('=') => {
+                let parts: Vec<&str> = s.split('=').collect();
+                if parts.len() == 2 {
+                    Ok((parts[0].to_string(), parts[1].to_string()))
+                } else {
+                    Err(serde::de::Error::custom(format!(
+                        "Invalid environment variable format: {}",
+                        s
+                    )))
+                }
+            }
+            _ => Ok((var.clone(), "".to_string())),
+        })
+        .collect()
+}
+
+fn deserialize_command<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Command {
+        AsString(String),
+        AsArray(Vec<String>),
+    }
+
+    let command = Command::deserialize(deserializer)?;
+
+    match command {
+        Command::AsString(s) => Ok(vec![s]),
+        Command::AsArray(arr) => Ok(arr),
+    }
+}
+
+/// The Spec struct represents the specification as defined in the YAML file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Spec {
-    version: String,
-    services: Vec<Service>,
+    pub version: String,
+    pub services: Vec<Service>,
 }
 
 impl Spec {
@@ -239,12 +283,94 @@ impl Spec {
         let spec = serde_yaml::from_reader(reader)?;
         Ok(spec)
     }
+
+    pub fn from_schedule(schedule: &Schedule) -> anyhow::Result<Self> {
+        Ok(Spec {
+            version: "0.0.1".to_string(),
+            services: schedule
+                .containers
+                .iter()
+                .map(|container| Service {
+                    name: container.name.clone(),
+                    command: container.command.clone(),
+                    image: container.container_image.clone(),
+                    environment: container
+                        .environment
+                        .iter()
+                        .map(|env| (env.key.clone(), env.value.clone()))
+                        .collect(),
+                    privileged: container.privileged,
+                    restart: "always".to_string(),
+                    host_features: HostFeatures {
+                        daemon_socket: container.bind_docker_socket,
+                        boot_partition: container.bind_boot,
+                    },
+                    ports: container
+                        .ports
+                        .iter()
+                        .map(|port| PortSpec {
+                            host_ip: Some(port.host_ip.clone()),
+                            host_port: port.host_port as u16,
+                            container_port: port.container_port as u16,
+                            protocol: port.protocol.clone(),
+                        })
+                        .collect(),
+                    networks: vec![],
+                    depends_on: vec![],
+                    volumes: vec![],
+                })
+                .collect(),
+        })
+    }
+}
+
+impl Schedule {
+    pub fn from_spec(spec: &Spec) -> Self {
+        let mut schedule = Schedule::default();
+
+        for service in &spec.services {
+            schedule.containers.push(Container {
+                id: uuid::Uuid::now_v7().to_string(),
+                entrypoint: "".to_string(), // not yet supported on spec side
+
+                name: service.name.clone(),
+                container_image: service.image.clone(),
+                command: service.command.clone(),
+                environment: service
+                    .environment
+                    .iter()
+                    .map(|(k, v)| ContainerEnvironment {
+                        key: k.clone(),
+                        value: v.clone(),
+                    })
+                    .collect(),
+                privileged: service.privileged,
+                bind_boot: service.host_features.boot_partition,
+                bind_docker_socket: service.host_features.daemon_socket,
+                ports: service
+                    .ports
+                    .iter()
+                    .map(|port| ContainerPortDefinition {
+                        container_port: port.container_port as i32,
+                        host_ip: port.host_ip.clone().unwrap_or("".to_string()),
+                        host_port: port.host_port as i32,
+                        protocol: port.protocol.clone(),
+                    })
+                    .collect(),
+                network_mode: match service.networks.first() {
+                    Some(network) => network.clone(),
+                    None => "bridge".to_string(),
+                },
+            });
+        }
+
+        schedule
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::schedule::Spec;
-
 
     #[test]
     fn test_example_spec() {
@@ -294,7 +420,6 @@ services:
         assert_eq!(spec.version, "0.1.0");
     }
 
-
     #[test]
     fn test_simple_spec() {
         const SIMPLE_SPEC: &str = r#"
@@ -308,5 +433,4 @@ services:
         let spec: Spec = serde_yaml::from_str(SIMPLE_SPEC).unwrap();
         assert_eq!(spec.version, "0.1.0");
     }
-
 }

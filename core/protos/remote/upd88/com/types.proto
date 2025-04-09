@@ -1,0 +1,222 @@
+syntax = "proto3";
+
+package remote.upd88.com;
+
+message ContainerEnvironment {
+  string key = 1;
+  string value = 2;
+}
+
+message ContainerPortDefinition {
+  string host_ip = 1;
+  int32 host_port = 2;
+  int32 container_port = 3;
+  string protocol = 4;
+}
+
+message Container {
+  string id = 1;
+  string name = 2;
+
+  string container_image = 3;
+
+  repeated ContainerEnvironment environment = 4;
+
+  bool privileged = 5;
+  string network_mode = 6;
+
+  repeated ContainerPortDefinition ports = 7;
+
+  bool bind_docker_socket = 8;
+  bool bind_boot = 9;
+
+  repeated string command = 10;
+
+  string entrypoint = 11;
+}
+
+message Schedule {
+  string id = 1;
+  bool current = 2;
+  repeated Container containers = 3;
+}
+
+message GetScheduleRequest {
+  string device_id = 1;
+}
+
+message GetScheduleResponse {
+  Schedule schedule = 1;
+}
+
+message ContainerState {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+  string error = 4;
+  string schedule_id = 5;
+}
+
+message ReportScheduleStateRequest {
+  string device_id = 1;
+  repeated ContainerState container_states = 2;
+}
+
+message ReportScheduleStateResponse {}
+
+message DeviceRegistrationRequest {
+  string initial_device_identifier = 1;
+  string registration_token = 2;
+}
+
+message DeviceRegistrationResponse {
+  string device_identifier = 1;
+  string api_token = 2;
+}
+
+message GetAvailableDevicesRequest {}
+
+message GetAvailableDevicesResponse {
+  message Device {
+    string id = 1;
+    string name = 2;
+  }
+
+  repeated Device devices = 1;
+}
+
+message PublishScheduleRequest {
+  Schedule schedule = 1;
+}
+
+message PublishScheduleResponse {
+  string schedule_id = 1;
+}
+
+message SetDeviceScheduleRequest {
+  string device_id = 1;
+  string schedule_id = 2;
+}
+
+message SetDeviceScheduleResponse {
+  string schedule_id = 1;
+}
+
+message WaitForAnonymousDeviceRegistrationRequest {
+  // considering scrapping this field and simply using the active connection
+  // if the connection drops, we'd simply create a new record
+  // to allow us to keep out database clean, we'd simply update a 'last_seen' field
+  // on the waiting room record, and then delete it after some set period of time (e.g. 1 hour)
+  string temporary_device_identifier = 1;
+}
+
+// message DeviceRegistrationPending {
+//   // Is this field useful?
+//   uint64 seconds_until_timeout = 1;
+
+//   string registration_token = 2;
+//   string registration_url = 3;
+// }
+
+/*
+
+   Ok, so the `temporary_device_identifier` field is useful if we're doing a unary response flow. The device reaches out with its secret/self-assigned token, we return the registration token/URL, and then the device waits/polls, etc. for
+   a response telling it that registration is complete.
+
+   If we do a streaming response flow, we don't need that nonce because we could use the underlying connection as a proxy for a device identifier.
+
+   ### Temporary device identifier life cycle
+
+   The device registration token should probablyt be strictly runtime-only on the registering device. An application restart should result in a new token.
+   If the application reaches out and finds that the token is invalid, it should simply generate a new token and try again.
+   Once a device is registered, the token will be invalidated. If an attacker guesses (or finds) the temporary token before the device registers, they may be able to impersonate the device.
+   However, after the device is registered, since the token is invalidated, an attacker could try the previous token, but it would result in a brand-new device registration flow -- eventually timing out, or allowing the attacker to register their 'fake' device as their own -- no problem.
+   In other words, invalidating the token is really akin to 'detaching' the token. Once a device uses the token, it loses all meaning and could be used by anyone else.
+
+    ### Token timeout
+
+   Should we track the seconds until timeout for a given token?
+   Maybe we hide this from the API interface, and instead manage this internally. It's possible that when asking to start the registration flow, we might deny the request. That could be for any reason the server sees fit.
+   If the device encounters an error, it can simply change the token and try again.
+
+    ### Registration completion signal
+    High-level options are to poll the server for a response, or to use a streaming RPC to get a response.
+    - Polling is probably the simplest, but is chatty, less efficient, and not as snappy. But, it's pretty simple to reason about.
+    - Streaming is marginally more complex, but allows for a more 'real-time' experience. The server can send a message to the device when the registration is complete.
+
+    We could go with a streaming request/response flow. The device could simply publish a heartbeat to keep our 'last seen' field up to date. When the server finally sees the registration flow complete it can send back the final response.
+    rpc WaitForAnonymousDeviceRegistration(stream WaitForAnonymousDeviceRegistrationRequest) returns (WaitForAnonymousDeviceRegistrationResponse) {}
+    This switches the streaming that we currently have, but probably makes more sense.
+
+    ## Rate-limiting
+    It might be desirable to have a built-in rate limiting mechanism for the registration flow. Perhaps we always accept a device request, but we won't respond for maybe 3 seconds. This would allow us to 'throttle' the registration flow.
+    This would mostly be implemented to thwart enumeration attacks. A misbehaved device or person could spam our registration flow with many requests and consume connections, but the threads would be parked.
+
+*/
+
+// message RegitrationResult {
+//   string device_identifier = 1;
+//   string api_token = 2;
+// }
+
+// message WaitForAnonymousDeviceRegistrationResponse {
+//   oneof result {
+//     RegitrationResult registration_result = 1;
+//     DeviceRegistrationPending registration_pending = 2;
+//   }
+// }
+
+message WaitForAnonymousDeviceRegistrationResponse {
+  string device_identifier = 1;
+  string api_token = 2;
+  string api_endpoint = 3;
+}
+
+message StartAnonymousDeviceRegistrationRequest {
+  string temporary_device_identifier = 1;
+}
+
+message StartAnonymousDeviceRegistrationResponse {
+  string registration_token = 1;
+  string registration_url = 2;
+}
+
+message ClaimDeviceRequest {
+  string registration_token = 1;
+}
+
+message ClaimDeviceResponse {
+  string device_identifier = 1;
+}
+
+// rpc CheckAnonymousDeviceRegistration(CheckAnonymousDeviceRegistrationRequest) returns (CheckAnonymousDeviceRegistrationResponse);
+
+message CheckAnonymousDeviceRegistrationRequest {
+  string temporary_device_identifier = 1;
+}
+
+message RegitrationResult {
+  string device_identifier = 1;
+  string api_token = 2;
+  string api_endpoint = 3;
+}
+
+message DeviceRegistrationPending {
+  string registration_token = 1;
+  string registration_url = 2;
+  int64 seconds_until_timeout = 3;
+}
+
+enum RegistrationFailureStatus {
+  REGISTRATION_FAILURE_STATUS_UNSPECIFIED = 0;
+  REGISTRATION_FAILURE_STATUS_TOKEN_INVALID = 1;
+  REGISTRATION_FAILURE_STATUS_TOKEN_EXPIRED = 2;
+}
+
+message CheckAnonymousDeviceRegistrationResponse {
+  oneof result {
+    RegitrationResult registration_result = 1;
+    DeviceRegistrationPending registration_pending = 2;
+    RegistrationFailureStatus registration_failure_status = 3;
+  }
+}

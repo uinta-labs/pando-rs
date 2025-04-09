@@ -1,0 +1,25 @@
+[package]
+name = "pando-remote"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+pando-core = { path = "../core" }
+migration = { path = "../migration" }
+entity = { path = "../entity" }
+sea-orm = { workspace = true }
+clap = { version = "4.4.18", features = ["derive"] }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+env_logger = { workspace = true }
+tonic = { workspace = true }
+uuid = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+dotenvy = { git = "https://github.com/allan2/dotenvy", features = ["macros"] }
+tracing = { version = "0.1.41", features = ["log"] }
+tracing-subscriber = "0.3.19"
+axum = "0.8.3"
+chrono = { version = "0.4.40", features = ["serde"] }
+tokio-stream = { version = "0.1.17", features = ["full"] }

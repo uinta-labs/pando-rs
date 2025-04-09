@@ -2,90 +2,11 @@ syntax = "proto3";
 
 package remote.upd88.com;
 
-message ContainerEnvironment {
-  string key = 1;
-  string value = 2;
-}
-
-message ContainerPortDefinition {
-  string host_ip = 1;
-  int32 host_port = 2;
-  int32 container_port = 3;
-  string protocol = 4;
-}
-
-message Container{
-  string id = 1;
-  string name = 2;
-
-  string container_image = 3;
-
-  repeated ContainerEnvironment environment = 4;
-
-  bool privileged = 5;
-  string network_mode = 6;
-
-  repeated ContainerPortDefinition ports = 7;
-
-  bool bind_docker_socket = 8;
-  bool bind_boot = 9;
-
-  repeated string command = 10;
-
-  string entrypoint = 11;
-}
-
-message Schedule {
-  string id = 1;
-  bool current = 2;
-  repeated Container containers = 3;
-}
-
-message GetScheduleRequest {
-  string device_id = 1;
-}
-
-message GetScheduleResponse {
-  Schedule schedule = 1;
-}
-
-message ContainerState {
-  string id = 1;
-  string name = 2;
-  string status = 3;
-  string error = 4;
-  string schedule_id = 5;
-}
-
-message ReportScheduleStateRequest {
-  string device_id = 1;
-  repeated ContainerState container_states = 2;
-}
-
-message ReportScheduleStateResponse {}
-
-message DeviceRegistrationRequest {
-  string initial_device_identifier = 1;
-  string registration_token = 2;
-}
-
-message DeviceRegistrationResponse {
-  string device_identifier = 1;
-  string api_token = 2;
-}
-
-message AnonymousDeviceRegistrationRequest {
-  string temporary_device_identifier = 1;
-}
-
-message AnonymousDeviceRegistrationResponse {
-  string registration_token = 1;
-  string registration_url = 2;
-}
+import "types.proto";
 
 service RemoteService {
-  rpc DeviceRegistration(DeviceRegistrationRequest) returns (DeviceRegistrationResponse);
-  rpc GetSchedule(GetScheduleRequest) returns (GetScheduleResponse);
-  rpc ReportScheduleState(ReportScheduleStateRequest) returns (ReportScheduleStateResponse);
-  rpc AnonymousDeviceRegistration(AnonymousDeviceRegistrationRequest) returns (AnonymousDeviceRegistrationResponse);
+  rpc GetAvailableDevices(GetAvailableDevicesRequest) returns (GetAvailableDevicesResponse);
+  rpc PublishSchedule(PublishScheduleRequest) returns (PublishScheduleResponse);
+  rpc SetDeviceSchedule(SetDeviceScheduleRequest) returns (SetDeviceScheduleResponse);
+  rpc ClaimDevice(ClaimDeviceRequest) returns (ClaimDeviceResponse);
 }

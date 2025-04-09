@@ -148,13 +148,26 @@ where
         let mut file = fs::File::create(self.config_file())?;
         file.write_all(json.as_bytes())
     }
+
+    /// Ensures the configuration file exists and is valid
+    pub fn setup(&self) -> io::Result<T> {
+        self.ensure_config_dirs()?;
+        if self.config_file().exists() {
+            self.load()
+        } else {
+            // Create a new config file with default values
+            let default_data = T::default();
+            self.save()?;
+            Ok(default_data)
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    
+
     use super::*;
-    
+
     use assert_fs::prelude::*;
     use serde::{Deserialize, Serialize};
 
@@ -218,7 +231,12 @@ mod tests {
 
     #[test]
     fn test_empty_config_file() -> io::Result<()> {
-        let file = assert_fs::NamedTempFile::new("config.json").map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to create temp file: {}", e)))?;
+        let file = assert_fs::NamedTempFile::new("config.json").map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                format!("Failed to create temp file: {}", e),
+            )
+        })?;
 
         let config: Config<TestConfig> = Config::new(
             ConfigMode::Path(file.path().to_path_buf()),

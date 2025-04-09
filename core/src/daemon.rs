@@ -1,20 +1,27 @@
 use anyhow::Result;
 use async_nats::Subject;
 use bollard::container::{KillContainerOptions, StartContainerOptions};
-use bollard::secret::SystemVersionPlatform;
+use bollard::secret::{PortBinding, PortMap, SystemVersionPlatform};
 use bollard::{container::ListContainersOptions, Docker, API_DEFAULT_VERSION};
 use bytes::Bytes;
 use futures::StreamExt;
+use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use std::time::Duration;
 use tokio::{task, time};
+use tracing::debug;
+use uuid::Uuid;
 
-use crate::temp::{Temperature, list_zones};
-use crate::grpc_remote::Schedule;
+use crate::config_json::ConfigJson;
+use crate::grpc_remote::{
+    CheckAnonymousDeviceRegistrationRequest, ContainerPortDefinition, RegistrationFailureStatus,
+    Schedule,
+};
+use crate::temp::{list_zones, Temperature};
+use crate::{config, registration};
 
-// const DEFAULT_BASE_URL: &str = "https://graphene.fluffy-broadnose.ts.net";
 const DEFAULT_DOCKER_ENGINE_SOCKET: &str = "/run/balena-engine.sock";
 
 #[derive(Debug)]
@@ -101,6 +108,7 @@ impl Runner {
         labels: HashMap<String, String>,
         bind_docker_socket: bool,
         network_mode_host: bool,
+        ports: Vec<ContainerPortDefinition>,
     ) -> Result<String, bollard::errors::Error> {
         let mut binds = Vec::new();
         if bind_docker_socket {
@@ -123,6 +131,19 @@ impl Runner {
             env: Some(env_refs),
             labels: Some(labels_refs),
             host_config: Some(bollard::models::HostConfig {
+                port_bindings: Some(
+                    ports
+                        .iter()
+                        .map(|port| {
+                            let key = format!("{}/{}", port.container_port, port.protocol);
+                            let value = vec![PortBinding {
+                                host_ip: None,
+                                host_port: Some(format!("{}", port.host_port)),
+                            }];
+                            (key, Some(value))
+                        })
+                        .collect::<PortMap>(),
+                ),
                 binds: Some(binds),
                 network_mode: if network_mode_host {
                     Some("host".to_string())
@@ -236,6 +257,7 @@ async fn apply_schedule(
                 labels,
                 task.bind_docker_socket,
                 task.network_mode == "host",
+                task.ports.clone(),
             )
             .await
         {
@@ -287,19 +309,24 @@ fn parse_subject(s: Subject) -> Result<MessageSubject, anyhow::Error> {
 }
 
 fn parse_schedule_payload(payload: Bytes) -> Result<Schedule, anyhow::Error> {
-    prost::Message::decode(payload).map_err(|e| anyhow::anyhow!(e))
+    // prost::Message::decode(payload).map_err(|e| anyhow::anyhow!(e))
+    Schedule::decode(payload).map_err(|e| anyhow::anyhow!(e))
+    // serde_json::from_slice(&payload).map_err(|e| anyhow::anyhow!(e))
 }
 
 async fn run_scheduler(runner: Runner, device_id: String) -> Result<(), anyhow::Error> {
-    let nats_url = env::var("NATS_URL").unwrap_or_else(|_| "tls://connect.ngs.global".to_string());
-    let client = async_nats::ConnectOptions::with_credentials_file(
-        "/Users/isaac/Downloads/NGS-Default-Example-Client.creds",
-    )
-    .await
-    .expect("Failed to create client")
-    .name(format!("pando-agent-{}", device_id))
-    .connect(nats_url)
-    .await?;
+    // let nats_url = env::var("NATS_URL").unwrap_or_else(|_| "tls://connect.ngs.global".to_string());
+    let nats_url = env::var("NATS_URL").unwrap_or_else(|_| "mqtt.stag9.com".to_string());
+    // let client = async_nats::ConnectOptions::with_credentials_file(
+    //     "/Users/isaac/Downloads/NGS-Default-Example-Client.creds",
+    // )
+    debug!("Connecting to NATS server at {}", nats_url);
+    let client = async_nats::ConnectOptions::new()
+        // .await
+        // .expect("Failed to create client")
+        .name(format!("pando-agent-{}", device_id))
+        .connect(nats_url)
+        .await?;
     let mut subscriber = client.subscribe("pando.commands.*").await?;
 
     task::spawn(async move {
@@ -309,9 +336,7 @@ async fn run_scheduler(runner: Runner, device_id: String) -> Result<(), anyhow::
                     for zone in temp_zones {
                         let temp = Temperature::new(zone.clone());
                         let temp = temp.get_temperature().await.unwrap();
-                        let stats = SystemStats {
-                            cpu_temp: temp,
-                        };
+                        let stats = SystemStats { cpu_temp: temp };
                         let stats_json = serde_json::to_string(&stats).unwrap();
                         println!("Publishing stats: {}", stats_json);
 
@@ -327,39 +352,41 @@ async fn run_scheduler(runner: Runner, device_id: String) -> Result<(), anyhow::
         }
     });
 
-    while let Some(message) = subscriber.next().await {
-        println!("Received message {:?}", message);
+    loop {
+        while let Some(message) = subscriber.next().await {
+            println!("Received message {:?}", message);
 
-        match parse_subject(message.subject.clone()) {
-            Err(e) => {
-                println!("Error parsing subject: {:?}", e);
-                continue;
-            }
-            Ok(subject) => match subject {
-                MessageSubject::SetSchedule => match parse_schedule_payload(message.payload) {
-                    Err(e) => {
-                        println!("Error parsing schedule payload: {:?}", e);
-                        continue;
-                    }
-                    Ok(schedule) => {
-                        if let Err(e) = apply_schedule(&runner, &schedule).await {
-                            println!("Error applying schedule: {:?}", e);
+            match parse_subject(message.subject.clone()) {
+                Err(e) => {
+                    println!("Error parsing subject: {:?}", e);
+                    continue;
+                }
+                Ok(subject) => match subject {
+                    MessageSubject::SetSchedule => match parse_schedule_payload(message.payload) {
+                        Err(e) => {
+                            println!("Error parsing schedule payload: {:?}", e);
+                            continue;
                         }
+                        Ok(schedule) => {
+                            if let Err(e) = apply_schedule(&runner, &schedule).await {
+                                println!("Error applying schedule: {:?}", e);
+                            }
 
-                        println!("Received schedule: {:?}", schedule);
+                            println!("Received schedule: {:?}", schedule);
+                        }
+                    },
+                    MessageSubject::GetSchedule => {
+                        println!("Received get-schedule request (unhandled)");
+                    }
+                    MessageSubject::GetStats => {
+                        println!("Received get-stats request (unhandled)");
                     }
                 },
-                MessageSubject::GetSchedule => {
-                    println!("Received get-schedule request (unhandled)");
-                }
-                MessageSubject::GetStats => {
-                    println!("Received get-stats request (unhandled)");
-                }
-            },
+            }
         }
+        println!("Subscriber closed. Attempting to reconnect...");
+        time::sleep(Duration::from_secs(5)).await;
     }
-
-    Ok(())
 }
 
 pub async fn run_agent() -> Result<(), anyhow::Error> {
@@ -371,6 +398,116 @@ pub async fn run_agent() -> Result<(), anyhow::Error> {
     let uname = rustix::system::uname();
     let hostname = uname.nodename().to_str().unwrap_or("unknown");
     let device_id = hostname.to_string();
+
+    let mut config_manager = config::Config::<ConfigJson>::new(
+        #[cfg(target_os = "linux")]
+        config::ConfigMode::Path("/boot/config.json".into()),
+        #[cfg(not(target_os = "linux"))]
+        config::ConfigMode::User,
+        "config.json".into(),
+    )?;
+    let config_json = config_manager.setup()?;
+
+    if registration::get_registration_status(&config_json) {
+        debug!("Device is already registered: {:?}", config_json);
+    } else {
+        println!("Device is not registered");
+        let api_endpoint = config_json
+            .api_endpoint
+            .clone()
+            .unwrap_or(
+                env::var("PANDO_API_ENDPOINT").map_err(|_| {
+                    anyhow::anyhow!("No API endpoint specified in config and failed to load using PANDO_API_ENDPOINT env var")
+                })?,
+            );
+
+        let temporary_device_identifier = Uuid::now_v7();
+
+        let mut grpc_client =
+            registration::wait_for_client_connection(api_endpoint.clone()).await?;
+        let anon_registration_response = registration::start_anonymous_provisioning(
+            temporary_device_identifier,
+            &mut grpc_client,
+        )
+        .await?;
+
+        println!("Please use the following registration token or URL to claim your device:");
+        println!("{}", anon_registration_response.registration_token);
+        println!("{}", anon_registration_response.registration_url);
+
+        let (api_token, device_identifier) = loop {
+            let resp = grpc_client
+                .check_anonymous_device_registration(CheckAnonymousDeviceRegistrationRequest {
+                    temporary_device_identifier: temporary_device_identifier.to_string(),
+                })
+                .await;
+
+            match resp {
+                Ok(response) => {
+                    match response.into_inner().result {
+                        Some(
+                            crate::grpc_remote::check_anonymous_device_registration_response::Result::RegistrationResult(
+                                result,
+                            ),
+                        ) => {
+                            println!("Device registered successfully");
+                            println!("API Token: {}", result.api_token);
+                            println!("Device ID: {}", result.device_identifier);
+
+                            break (
+                                result.api_token,
+                                result.device_identifier,
+                            );
+                        }
+                        Some(
+                            crate::grpc_remote::check_anonymous_device_registration_response::Result::RegistrationPending(
+                                result,
+                            ),
+                        ) => {
+                            println!("Device registration is still pending");
+                            println!("Time remaining: {} {}", result.seconds_until_timeout, match result.seconds_until_timeout {
+                                0 => "seconds".to_string(),
+                                1 => "second".to_string(),
+                                _ => "seconds".to_string(),
+                            });
+                            tokio::time::sleep(Duration::from_secs(5)).await;
+                            continue;
+                        }
+                        Some(registration_result) => {
+                            match registration_result {
+                                crate::grpc_remote::check_anonymous_device_registration_response::Result::RegistrationFailureStatus(v) => {
+                                    if v == RegistrationFailureStatus::Unspecified as i32 {
+                                        println!("Device registration failed: unspecified error");
+                                    } else if v == RegistrationFailureStatus::TokenExpired as i32 {
+                                        println!("Device registration failed: token expired");
+                                    } else if v == RegistrationFailureStatus::TokenInvalid as i32 {
+                                        println!("Device registration failed: token invalid");
+                                    } else {
+                                        println!("Device registration failed: unknown error");
+                                    }
+                                },
+                                _ => {
+                                    println!("Device registration failed: unspecified error");
+                                }
+                            }
+                            break (String::new(), String::new());
+                        }
+                        None => {
+                            println!("No result received from server");
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("Error checking registration status: {:?}", e);
+                }
+            }
+        };
+
+        config_manager.data_mut().api_token = Some(api_token);
+        config_manager.data_mut().api_endpoint = Some(api_endpoint);
+        config_manager.data_mut().uuid = Some(device_identifier);
+        config_manager.save()?;
+    }
 
     run_scheduler(runner, device_id).await
 }

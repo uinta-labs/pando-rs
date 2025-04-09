@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package remote.upd88.com;
+
+import "types.proto";
+
+service DeviceService {
+  rpc DeviceRegistration(DeviceRegistrationRequest) returns (DeviceRegistrationResponse);
+  rpc GetSchedule(GetScheduleRequest) returns (GetScheduleResponse);
+  rpc ReportScheduleState(ReportScheduleStateRequest) returns (ReportScheduleStateResponse);
+  rpc StartAnonymousDeviceRegistration(StartAnonymousDeviceRegistrationRequest) returns (StartAnonymousDeviceRegistrationResponse);
+  rpc CheckAnonymousDeviceRegistration(CheckAnonymousDeviceRegistrationRequest) returns (CheckAnonymousDeviceRegistrationResponse);
+  // rpc WaitForAnonymousDeviceRegistration(stream WaitForAnonymousDeviceRegistrationRequest) returns (WaitForAnonymousDeviceRegistrationResponse);
+}

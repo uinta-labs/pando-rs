@@ -4,48 +4,52 @@ use anyhow::bail;
 use tokio::time;
 use uuid::Uuid;
 
-use crate::{config_json::ConfigJson, grpc_remote::{remote_service_client::RemoteServiceClient, AnonymousDeviceRegistrationRequest}};
+use crate::grpc_remote::{
+    StartAnonymousDeviceRegistrationRequest, StartAnonymousDeviceRegistrationResponse,
+};
+use crate::{config_json::ConfigJson, grpc_remote::device_service_client::DeviceServiceClient};
 
-
-pub fn get_registration_status(config: &ConfigJson) -> anyhow::Result<bool> {
+pub fn get_registration_status(config: &ConfigJson) -> bool {
     if config.api_token.is_none() {
-        return Ok(false);
+        return false;
     }
     if config.api_endpoint.is_none() {
-        return Ok(false);
+        return false;
     }
     if config.uuid.is_none() {
-        return Ok(false);
+        return false;
     }
-    Ok(true)
+    true
 }
 
-pub fn get_registration_token_and_endpoint(config: &ConfigJson) -> anyhow::Result<(String, String)> {
-    match &config.init {
-        Some(init) => {
-            let provisioning_token = match &init.provisioning_token {
-                Some(token) => token,
-                None => {
-                    bail!("No provisioning token in init section")
-                }
-            };
-            let api_endpoint = match &config.api_endpoint {
-                Some(endpoint) => endpoint,
-                None => {
-                    bail!("No api endpoint in config")
-                }
-            };
-            Ok((provisioning_token.clone(), api_endpoint.clone()))
-        }
-        None => {
-            bail!("No init section in config")
-        }
-    }
-}
+// pub fn get_registration_token_and_endpoint(
+//     config: &ConfigJson,
+// ) -> anyhow::Result<(String, String)> {
+//     match &config.init {
+//         Some(init) => {
+//             let provisioning_token = match &init.provisioning_token {
+//                 Some(token) => token,
+//                 None => {
+//                     bail!("No provisioning token in init section")
+//                 }
+//             };
+//             let api_endpoint = match &config.api_endpoint {
+//                 Some(endpoint) => endpoint,
+//                 None => {
+//                     bail!("No api endpoint in config")
+//                 }
+//             };
+//             Ok((provisioning_token.clone(), api_endpoint.clone()))
+//         }
+//         None => {
+//             bail!("No init section in config")
+//         }
+//     }
+// }
 
-async fn wait_for_client_connection(
+pub(crate) async fn wait_for_client_connection(
     endpoint: String,
-) -> Result<RemoteServiceClient<tonic::transport::Channel>, anyhow::Error> {
+) -> Result<DeviceServiceClient<tonic::transport::Channel>, anyhow::Error> {
     let total_wait_limit = 600; // we will wait for up to 10 minutes before bailing
     let connect_start_time = time::Instant::now();
     let current_wait_period_sec = 5;
@@ -61,7 +65,7 @@ async fn wait_for_client_connection(
             .concurrency_limit(1)
             .keep_alive_timeout(Duration::from_secs(3600));
 
-        let client = RemoteServiceClient::connect(channel).await;
+        let client = DeviceServiceClient::connect(channel).await;
         match client {
             Ok(client) => {
                 return Ok(client);
@@ -80,20 +84,44 @@ async fn wait_for_client_connection(
     }
 }
 
-
-pub async fn run_anonymous_provisioning(
-    mut client: RemoteServiceClient<tonic::transport::Channel>,
-) -> anyhow::Result<()> {
-    let temporary_device_identifier = Uuid::now_v7().to_string();
-    let registration_request = AnonymousDeviceRegistrationRequest {
-        temporary_device_identifier,
+/// This function starts the anonymous provisioning process using the 'waiting room' technique.
+/// We generate a temporary device identifier and send it to the server.
+/// The server responds with a token and URL. We can then present the token and/or URL to the user, possibly in the
+/// form of a QR code. A user can claim the device by scanning the QR code or entering the token in a web interface
+/// after authenticating with their account.
+pub(crate) async fn start_anonymous_provisioning(
+    temporary_device_identifier: Uuid,
+    client: &mut DeviceServiceClient<tonic::transport::Channel>,
+) -> anyhow::Result<StartAnonymousDeviceRegistrationResponse, anyhow::Error> {
+    let registration_request = StartAnonymousDeviceRegistrationRequest {
+        temporary_device_identifier: temporary_device_identifier.to_string(),
     };
 
     let response = client
-        .anonymous_device_registration(tonic::Request::new(registration_request))
+        .start_anonymous_device_registration(tonic::Request::new(registration_request))
         .await?;
-
     let response = response.into_inner();
+    println!("Received response: {:?}", response);
+    Ok(response)
 
-    Ok(())
+    // loop {
+    //     match client
+    //         .wait_for_anonymous_device_registration(tonic::Request::new(
+    //             registration_request.clone(),
+    //         ))
+    //         .await
+    //     {
+    //         Ok(streaming_response) => {
+    //             let mut stream = streaming_response.into_inner();
+    //             while let Some(response) = stream.message().await? {
+    //                 println!("Received response: {:?}", response);
+    //             }
+    //         }
+    //         Err(e) => {
+    //             // TODO: look to see if the error is because the temporary device identifier is already in use (somehow), and bail if so
+    //             println!("Error during anonymous device registration: {:?}", e);
+    //             time::sleep(Duration::from_secs(5)).await;
+    //         }
+    //     }
+    // }
 }

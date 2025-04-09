@@ -6,6 +6,7 @@ pub mod mqtt;
 pub mod registration;
 pub mod schedule;
 pub mod temp;
+pub mod nats;
 
 pub mod grpc_remote {
     tonic::include_proto!("remote.upd88.com");
