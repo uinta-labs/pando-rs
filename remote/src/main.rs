@@ -11,7 +11,7 @@ use sea_orm::{Database, DatabaseConnection, EntityTrait};
 use std::time::Duration;
 use std::{fs::File, io::ErrorKind, path::Path};
 use tokio::time::sleep;
-use tonic::transport::Server;
+use tonic::service::Routes;
 use tonic::{Response, Status};
 use tracing::{debug, info, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -247,7 +247,6 @@ impl PandoRemoteServer {
 
 #[tonic::async_trait]
 impl pando_core::grpc_remote::device_service_server::DeviceService for PandoRemoteServer {
-    //   rpc StartAnonymousDeviceRegistration(StartAnonymousDeviceRegistrationRequest) returns (StartAnonymousDeviceRegistrationResponse);
 
     async fn start_anonymous_device_registration(
         &self,
@@ -275,394 +274,6 @@ impl pando_core::grpc_remote::device_service_server::DeviceService for PandoRemo
 
         Ok(Response::new(response))
     }
-
-    // async fn wait_for_anonymous_device_registration(
-    //     &self,
-    //     request: tonic::Request<
-    //         Streaming<pando_core::grpc_remote::WaitForAnonymousDeviceRegistrationRequest>,
-    //     >,
-    // ) -> Result<
-    //     tonic::Response<pando_core::grpc_remote::WaitForAnonymousDeviceRegistrationResponse>,
-    //     tonic::Status,
-    // > {
-    //     debug!("Received WaitForAnonymousDeviceRegistrationRequest");
-
-    //     let mut stream = request.into_inner();
-
-    //     let (temporary_device_identifier_channel, mut temporary_device_identifier_receiver) =
-    //         mpsc::channel(1);
-
-    //     tokio::spawn(async move {
-    //         while let Some(request) = stream.next().await {
-    //             match request {
-    //                 Ok(request) => {
-    //                     let temporary_device_identifier = request.temporary_device_identifier;
-    //                     debug!(
-    //                         "Received temporary device identifier: {:?}",
-    //                         temporary_device_identifier
-    //                     );
-    //                     if temporary_device_identifier.is_empty() {
-    //                         return Err(tonic::Status::invalid_argument(
-    //                             "Temporary device identifier is required",
-    //                         ));
-    //                     }
-    //                     if let Err(_) = temporary_device_identifier_channel
-    //                         .send(temporary_device_identifier)
-    //                         .await
-    //                     {
-    //                         tracing::error!("Failed to send temporary device identifier");
-    //                     }
-    //                 }
-    //                 Err(e) => {
-    //                     tracing::error!("Failed to read request: {}", e);
-    //                     return Err(tonic::Status::internal("Failed to read request"));
-    //                 }
-    //             }
-    //         }
-
-    //         Ok(())
-    //     });
-
-    //     // wait for the temporary device identifier to be sent
-    //     let temporary_device_identifier = temporary_device_identifier_receiver
-    //         .recv()
-    //         .await
-    //         .ok_or_else(|| {
-    //             tracing::error!("Failed to receive temporary device identifier");
-    //             tonic::Status::cancelled("Failed to receive temporary device identifier")
-    //         })?;
-    //     debug!(
-    //         "Received temporary device identifier: {:?}",
-    //         temporary_device_identifier
-    //     );
-
-    //     if temporary_device_identifier.is_empty() {
-    //         return Err(tonic::Status::invalid_argument(
-    //             "Temporary device identifier is required",
-    //         ));
-    //     }
-
-    //     let mut waiting_room_stream = WaitingRoom::find()
-    //         .filter(waiting_room::Column::DeviceTemporaryToken.eq(temporary_device_identifier))
-    //         .stream(&self.connection)
-    //         .await
-    //         .map_err(|e| {
-    //             tracing::error!("Failed to fetch waiting room record: {}", e);
-    //             tonic::Status::internal("Failed to fetch waiting room record")
-    //         })?;
-
-    //     loop {
-    //         while let Some(waiting_room_record_result) = waiting_room_stream.next().await {
-    //             match waiting_room_record_result {
-    //                 Ok(waiting_room_record_result) => {
-    //                     if waiting_room_record_result.api_endpoint.is_some()
-    //                         && waiting_room_record_result.api_token.is_some()
-    //                         && waiting_room_record_result.resulting_device_id.is_some()
-    //                     {
-    //                         info!("Device registered: {:?}", waiting_room_record_result);
-    //                         let resulting_device_id = waiting_room_record_result
-    //                             .resulting_device_id
-    //                             .unwrap()
-    //                             .to_string();
-    //                         let api_endpoint = waiting_room_record_result.api_endpoint.unwrap();
-    //                         let api_token = waiting_room_record_result.api_token.unwrap();
-
-    //                         return Ok(Response::new(
-    //                         pando_core::grpc_remote::WaitForAnonymousDeviceRegistrationResponse {
-    //                             device_identifier: resulting_device_id,
-    //                             api_endpoint,
-    //                             api_token,
-    //                         },
-    //                     ));
-    //                     }
-    //                 }
-    //                 Err(e) => {
-    //                     tracing::error!("Failed to fetch waiting room record: {}", e);
-    //                     return Err(tonic::Status::internal(
-    //                         "Failed to fetch waiting room record",
-    //                     ));
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     // loop {
-    //     //     // every second, check to see if the device is registered
-    //     //     // if it is, return the device identifier and api endpoint
-
-    //     //     let temporary_device_identifier = temporary_device_identifier_receiver.recv().await;
-
-    //     //     if temporary_device_identifier.is_none() {
-    //     //         return Err(tonic::Status::cancelled(
-    //     //             "WaitForAnonymousDeviceRegistration cancelled",
-    //     //         ));
-    //     //     }
-    //     //     let temporary_device_identifier = temporary_device_identifier.unwrap();
-    //     //     debug!(
-    //     //         "Received temporary device identifier: {:?}",
-    //     //         temporary_device_identifier
-    //     //     );
-    //     //     if temporary_device_identifier.is_empty() {
-    //     //         return Err(tonic::Status::invalid_argument(
-    //     //             "Temporary device identifier is required",
-    //     //         ));
-    //     //     }
-    //     //     debug!(
-    //     //         "Known temporary device identifier: {:?}",
-    //     //         temporary_device_identifier
-    //     //     );
-    //     //     // lookup the waiting room record
-    //     //     let waiting_room_record = self
-    //     //         .get_or_create_waiting_room_record(temporary_device_identifier.clone())
-    //     //         .await?;
-    //     //     info!("Waiting room record found: {:?}", waiting_room_record);
-
-    //     //     if waiting_room_record.api_endpoint.is_some()
-    //     //         && waiting_room_record.api_token.is_some()
-    //     //         && waiting_room_record.resulting_device_id.is_some()
-    //     //     {
-    //     //         let resulting_device_id = waiting_room_record.resulting_device_id.unwrap();
-    //     //         let api_endpoint = waiting_room_record.api_endpoint.unwrap();
-    //     //         let api_token = waiting_room_record.api_token.unwrap();
-
-    //     //         // TODO: mark waiting room record as used
-    //     //         // maybe delete or soft delete?
-
-    //     //         // clean up channel
-
-    //     //         println!("Device registered: {:?}", resulting_device_id);
-
-    //     //         return Ok(Response::new(
-    //     //             pando_core::grpc_remote::WaitForAnonymousDeviceRegistrationResponse {
-    //     //                 device_identifier: resulting_device_id.to_string(),
-    //     //                 api_endpoint,
-    //     //                 api_token,
-    //     //             },
-    //     //         ));
-    //     //     }
-
-    //     //     let now_utc = chrono::Utc::now().naive_utc().and_utc().timestamp() as u64;
-    //     //     let expires_at_utc = waiting_room_record.expires_at.and_utc().timestamp() as u64;
-    //     //     let remaining_seconds: Option<u64> = if expires_at_utc > now_utc {
-    //     //         Some(expires_at_utc - now_utc)
-    //     //     } else {
-    //     //         None
-    //     //     };
-    //     //     debug!("Remaining seconds until timeout: {:?}", remaining_seconds);
-
-    //     //     sleep(std::time::Duration::from_secs(1)).await;
-    //     // }
-
-    //     // let mut known_temporary_device_identifier = String::new();
-
-    //     // while let Some(request) = stream.next().await {
-    //     //     match request {
-    //     //         Ok(request) => {
-    //     //             let temporary_device_identifier = request.temporary_device_identifier;
-    //     //             debug!(
-    //     //                 "Received temporary device identifier: {:?}",
-    //     //                 temporary_device_identifier
-    //     //             );
-    //     //             if temporary_device_identifier.is_empty() {
-    //     //                 return Err(tonic::Status::invalid_argument(
-    //     //                     "Temporary device identifier is required",
-    //     //                 ));
-    //     //             }
-    //     //             if known_temporary_device_identifier.is_empty() {
-    //     //                 known_temporary_device_identifier = temporary_device_identifier.clone();
-    //     //             } else if known_temporary_device_identifier != temporary_device_identifier {
-    //     //                 return Err(tonic::Status::invalid_argument(
-    //     //                     "Temporary device identifier must not change while waiting",
-    //     //                 ));
-    //     //             }
-    //     //             debug!(
-    //     //                 "Known temporary device identifier: {:?}",
-    //     //                 known_temporary_device_identifier
-    //     //             );
-
-    //     //             // lookup the waiting room record
-    //     //             let waiting_room_record = self
-    //     //                 .get_or_create_waiting_room_record(temporary_device_identifier.clone())
-    //     //                 .await?;
-    //     //             debug!("Waiting room record found: {:?}", waiting_room_record);
-
-    //     //             if waiting_room_record.api_endpoint.is_some()
-    //     //                 && waiting_room_record.api_token.is_some()
-    //     //                 && waiting_room_record.resulting_device_id.is_some()
-    //     //             {
-    //     //                 let resulting_device_id = waiting_room_record.resulting_device_id.unwrap();
-    //     //                 let api_endpoint = waiting_room_record.api_endpoint.unwrap();
-    //     //                 let api_token = waiting_room_record.api_token.unwrap();
-
-    //     //                 // TODO: mark waiting room record as used
-    //     //                 // maybe delete or soft delete?
-
-    //     //                 return Ok(Response::new(
-    //     //                     pando_core::grpc_remote::WaitForAnonymousDeviceRegistrationResponse {
-    //     //                         device_identifier: resulting_device_id.to_string(),
-    //     //                         api_endpoint,
-    //     //                         api_token,
-    //     //                     },
-    //     //                 ));
-    //     //             }
-
-    //     //             let now_utc = chrono::Utc::now().naive_utc().and_utc().timestamp() as u64;
-    //     //             let expires_at_utc =
-    //     //                 waiting_room_record.expires_at.and_utc().timestamp() as u64;
-    //     //             let remaining_seconds: Option<u64> = if expires_at_utc > now_utc {
-    //     //                 Some(expires_at_utc - now_utc)
-    //     //             } else {
-    //     //                 None
-    //     //             };
-    //     //             debug!("Remaining seconds until timeout: {:?}", remaining_seconds);
-    //     //         }
-    //     //         Err(e) => {
-    //     //             tracing::error!("Failed to read request: {}", e);
-    //     //             return Err(tonic::Status::internal("Failed to read request"));
-    //     //         }
-    //     //     }
-    //     // }
-
-    //     Err(tonic::Status::cancelled(
-    //         "WaitForAnonymousDeviceRegistration cancelled",
-    //     ))
-    // }
-
-    // type WaitForAnonymousDeviceRegistrationStream = Pin<
-    //     Box<dyn Stream<Item = Result<WaitForAnonymousDeviceRegistrationResponse, Status>> + Send>,
-    // >;
-
-    // async fn wait_for_anonymous_device_registration(
-    //     &self,
-    //     request: tonic::Request<pando_core::grpc_remote::WaitForAnonymousDeviceRegistrationRequest>,
-    //     // ) -> WaitForAnonymousDeviceRegistrationResult<ResponseStream> {
-    // ) -> Result<tonic::Response<Self::WaitForAnonymousDeviceRegistrationStream>, tonic::Status>
-    // {
-    //     let temporary_device_identifier = request
-    //         .into_inner()
-    //         .temporary_device_identifier
-    //         .trim()
-    //         .to_string();
-    //     if temporary_device_identifier.is_empty() {
-    //         return Err(tonic::Status::invalid_argument(
-    //             "Temporary device identifier is required",
-    //         ));
-    //     }
-    //     debug!(
-    //         "Received AnonymousDeviceRegistrationRequest {:?}",
-    //         temporary_device_identifier
-    //     );
-
-    //     let db_connection_mutex: Arc<tokio::sync::Mutex<DatabaseConnection>> =
-    //         Arc::new(tokio::sync::Mutex::new(self.connection.clone()));
-
-    //     let (tx, rx) = tokio::sync::mpsc::channel(4);
-
-    //     match &self
-    //         .get_or_create_waiting_room_record(temporary_device_identifier.clone())
-    //         .await
-    //     {
-    //         Ok(waiting_room_record) => {
-    //             debug!("Waiting room record created: {:?}", waiting_room_record);
-    //         }
-    //         Err(e) => {
-    //             tracing::error!("Failed to create waiting room record: {}", e);
-    //             return Err(tonic::Status::internal(
-    //                 "Failed to create waiting room record",
-    //             ));
-    //         }
-    //     }
-
-    //     tokio::spawn(async move {
-    //         loop {
-    //             match waiting_room::Entity::find()
-    //                 .filter(
-    //                     waiting_room::Column::DeviceTemporaryToken
-    //                         .eq(temporary_device_identifier.clone()),
-    //                 )
-    //                 .one(&*db_connection_mutex.lock().await)
-    //                 .await
-    //             {
-    //                 Ok(Some(waiting_room_record)) => {
-    //                     debug!("Found waiting room record: {:?}", waiting_room_record);
-    //                     let now_utc = chrono::Utc::now().naive_utc().and_utc().timestamp() as u64;
-    //                     let expires_at_utc =
-    //                         waiting_room_record.expires_at.and_utc().timestamp() as u64;
-    //                     let remaining_seconds: Option<u64> = if expires_at_utc > now_utc {
-    //                         Some(expires_at_utc - now_utc)
-    //                     } else {
-    //                         None
-    //                     };
-    //                     debug!("Remaining seconds until timeout: {:?}", remaining_seconds);
-
-    //                     // let remaining_seconds = waiting_room_record.expires_at.and_utc().timestamp()
-    //                     //     as u64
-    //                     //     - chrono::Utc::now().timestamp() as u64;
-    //                     if remaining_seconds.is_some() {
-    //                         let response = pando_core::grpc_remote::DeviceRegistrationPending {
-    //                             seconds_until_timeout: remaining_seconds.unwrap(),
-    //                             registration_token: waiting_room_record.registration_token.clone(),
-    //                             registration_url: waiting_room_record.registration_url.clone(),
-    //                         };
-    //                         // tx.send(Ok(response)).await.unwrap();
-    //                         match tx.send(Ok(WaitForAnonymousDeviceRegistrationResponse {
-    //                             result: Some(
-    //                                 pando_core::grpc_remote::wait_for_anonymous_device_registration_response::Result::RegistrationPending(
-    //                                     response.clone(),
-    //                                 )
-    //                             )
-    //                         })).await {
-    //                             Ok(_)  => {
-    //                                 debug!("Sent response: {:?}", response.clone());
-    //                             }
-    //                             Err(e) => {
-    //                                 tracing::error!("Failed to send response: {}", e);
-    //                                 break;
-    //                             }
-    //                         }
-    //                     } else {
-    //                         // Token expired, throw an error
-    //                         tx.send(Err(tonic::Status::failed_precondition(
-    //                             "Token expired".to_string(),
-    //                         )))
-    //                         .await
-    //                         .unwrap();
-    //                         break;
-    //                     }
-    //                     sleep(std::time::Duration::from_secs(1)).await;
-    //                 }
-    //                 Ok(None) => {
-    //                     // No waiting room record found, send an error
-    //                     tx.send(Err(tonic::Status::not_found(
-    //                         "No waiting room record found".to_string(),
-    //                     )))
-    //                     .await
-    //                     .unwrap();
-    //                     break;
-    //                 }
-    //                 Err(e) => {
-    //                     tracing::error!("Failed to fetch waiting room record: {}", e);
-    //                     tx.send(Err(tonic::Status::internal(
-    //                         "Failed to fetch waiting room record".to_string(),
-    //                     )))
-    //                     .await
-    //                     .unwrap();
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //     });
-    //     // for feature in &features[..] {
-    //     //     if in_range(feature.location.as_ref().unwrap(), request.get_ref()) {
-    //     //         tx.send(Ok(feature.clone())).await.unwrap();
-    //     //     }
-    //     // }
-
-    //     let output_stream = ReceiverStream::new(rx);
-    //     Ok(Response::new(
-    //         Box::pin(output_stream) as Self::WaitForAnonymousDeviceRegistrationStream
-    //     ))
-    // }
 
     async fn check_anonymous_device_registration(
         &self,
@@ -883,13 +494,6 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
         dotenvy::var("NATS_URL").unwrap_or("nats://localhost:4222".to_string()),
     );
 
-    let addr = format!(
-        "{}:{}",
-        args.host.unwrap_or("127.0.0.1".to_string()),
-        args.port.unwrap_or(8900)
-    );
-    info!("Starting server at {}", addr);
-
     let remote_grpc_server = PandoRemoteServer {
         nats_client: nats_client.clone(),
         connection: connection.clone(),
@@ -902,64 +506,34 @@ async fn main() -> anyhow::Result<(), anyhow::Error> {
         user_base_url,
     };
 
-    Server::builder()
-        .add_service(
-            pando_core::grpc_remote::remote_service_server::RemoteServiceServer::new(
-                remote_grpc_server,
-            ),
-        )
-        .add_service(
-            pando_core::grpc_remote::device_service_server::DeviceServiceServer::new(
-                device_grpc_server,
-            ),
-        )
-        .serve(addr.parse().unwrap())
-        .await?;
+    let remote_svc = pando_core::grpc_remote::remote_service_server::RemoteServiceServer::new(
+        remote_grpc_server,
+    );
+    let device_svc = pando_core::grpc_remote::device_service_server::DeviceServiceServer::new(
+        device_grpc_server,
+    );
 
-    // let router = axum::Router::new()
-    //     .route(
-    //         "/api/v1/agent",
-    //         axum::routing::get(|| async { "Hello, World!" }),
-    //     )
-    //     .route(
-    //         "/api/v1/agent/:id",
-    //         axum::routing::get(
-    //             |axum::extract::Path(id): axum::extract::Path<String>| async move {
-    //                 format!("Hello, {}!", id)
-    //             },
-    //         ),
-    //     )
-    //     .into_make_service();
+    let routes = Routes::new(remote_svc).add_service(device_svc).prepare();
 
-    // let addr = format!(
-    //     "{}:{}",
-    //     args.host.unwrap_or("127.0.0.1".to_string()),
-    //     args.port.unwrap_or(8080)
-    // );
-    // info!("Starting server at {}", addr);
+    let grpc_axum_router = tower::ServiceBuilder::new()
+        // .layer(
+        // )
+        .service(routes)
+        .into_axum_router();
 
-    // let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    // axum::serve(listener, router).await.unwrap();
+    let bound_router = grpc_axum_router.route("/", axum::routing::get(|| async { "Hello world!" }));
 
-    // let listener = tokio::net::TcpListener::bind(&addr).await?;
-    // let server = axum::Server::from_tcp(listener)?
-    //     .serve(router)
-    //     .with_graceful_shutdown(async {
-    //         tokio::signal::ctrl_c()
-    //             .await
-    //             .expect("Failed to install Ctrl+C signal handler");
-    //     });
-    // tokio::spawn(async {
-    //     if let Err(e) = server.await {
-    //         eprintln!("Server error: {}", e);
-    //     }
-    // });
-    // info!("Server started successfully");
-    // info!("Waiting for shutdown signal...");
-    // tokio::signal::ctrl_c()
-    //     .await
-    //     .expect("Failed to install Ctrl+C signal handler");
-    // info!("Received shutdown signal");
+    let addr = format!(
+        "{}:{}",
+        args.host.unwrap_or("127.0.0.1".to_string()),
+        args.port.unwrap_or(8900)
+    );
+
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    info!("Starting server at {}", addr);
+    if let Err(failure) = axum::serve(listener, bound_router).await {
+        eprintln!("Server error: {}", failure);
+    }
 
     Ok(())
 }
